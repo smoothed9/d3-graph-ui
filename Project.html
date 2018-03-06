@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<svg width="960" height="600"></svg>
+<style>
+marker#arrow {
+    fill: #666;
+}
+
+</style>
+
+<link href="css/bootstrap.min.css" rel="stylesheet">
+<!-- Material Design Bootstrap -->
+<link href="css/mdb.min.css" rel="stylesheet">
+<!-- Your custom styles (optional) -->
+<link href="css/style.css" rel="stylesheet">
+
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://d3js.org/d3-collection.v1.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script>
+var baseNodes = [
+{ id: "mammals",     group: 0, label: "Mammals", level: 1 }
+]
+
+
+var baseLinks = [
+  
+]
+
+var nodes = [...baseNodes]
+var links = [...baseLinks]
+
+const width = window.innerWidth
+const height = window.innerHeight
+const svg = d3.select('svg')
+svg.attr('width', width).attr('height', height)
+
+const simulation = d3.forceSimulation()
+	.force('charge', d3.forceManyBody().strength(-600))
+	.force('center', d3.forceCenter(width/2, height/2))
+
+function nodeColour(node){
+	return '#76ff03'
+}
+
+
+var nodeElements = svg.append('g')
+	.selectAll('circle')
+	.data(nodes)
+	.enter().append('circle')
+	.attr('r', 20)
+	.attr('fill', nodeColour)
+	.on("mouseover", selectNode)
+
+var textElements = svg.append('g')
+	.selectAll('text')
+	.data(nodes)
+	.enter().append('text')
+	.text(node => node.label)
+	.attr('font-size', 20)
+        .attr('dx', 20)
+	.attr('dy', -8)
+	.attr('fill', nodeColour)
+	
+simulation.force('link', d3.forceLink()
+	.id(link => link.id)
+	.strength(link => link.strength))
+
+var linkElements = svg.append('g')
+	.attr("class", "links")
+	.selectAll('line')
+	.data(links)
+	.enter().append('line')
+	.attr('stroke-width', 1)
+	.attr('stroke', '#E5E5E5')
+
+// define marker
+svg.append("svg:defs").selectAll("marker")
+    .data(["arrow"])
+  .enter().append("svg:marker")
+    .attr("id", String)
+    .attr("viewBox", "0 -5 10 10")
+    .attr("refX", 10)
+    .attr("refY", 0)
+    .attr("markerWidth", 13)
+    .attr("markerHeight", 20)
+    .attr("orient", "auto")
+    .append("svg:path")
+    .attr("d", "M0,-5L10,0L0,5")
+
+
+function getNeighbours(node) {
+  return links.reduce((neighbours, link) => {
+    if(link.source.id === node.id){
+	neighbours.push(link.target.id)
+    }
+    if(link.target.id === node.id) {
+	neighbours.push(link.source.id)
+    }
+    return neighbours
+  }, [node.id])
+}
+
+function getNeighbourDirection(node){
+  var neighbourMap = d3.map();
+  return links.reduce((neighbours, link) => {
+    if(link.source.id === node.id){
+	neighbourMap.set(link.target.id, 'outgoing')
+    }
+    if(link.target.id === node.id) {
+	neighbourMap.set(link.source.id, 'incoming')
+    }
+    return neighbourMap
+  }, [node.id])
+}
+
+function isNeighbourLink(node, link){
+  return link.target.id === node.id || link.source.id === node.id
+}
+
+function getLinkDirection(node, link) {
+  if(isNeighbourLink(node, link)){
+    return link.source.id === node.id ? 'outgoing' : 'incoming'
+  }
+}
+
+function getLinkColour(node, link){
+  var linkColour = '#E5E5E5'
+  if(getLinkDirection(node, link) === 'outgoing') {
+    linkColour = '#00e5ff'
+  } else if(getLinkDirection(node, link) === 'incoming') {
+    linkColour = '#ffff00'
+  } 
+  return linkColour
+}
+
+
+function nodeOpacity(node){
+  return node.transition(500).style("opacity", 0.2)
+}
+
+function resetData() {
+  var nodeIds = nodes.map(function (node) { return node.id })
+
+  baseNodes.forEach(function (node) {
+    if (nodeIds.indexOf(node.id) === -1) {
+      nodes.push(node)
+    }
+  })
+
+  links = baseLinks
+}
+
+function selectNode(selectedNode) {
+
+  const neighbours = getNeighbourDirection(selectedNode)
+  console.log('in selectNode')
+
+  nodeElements
+    .attr('fill', node => {
+	if(node.id === selectedNode.id){
+	  return 'orange'
+	} else {
+	  return nodeColour(node)
+	}
+    })
+    .attr('opacity', node => {
+	return (node.id === selectedNode.id || neighbours.get(node.id)) ? 1 : 0.2
+	  
+    })
+
+  linkElements
+    .attr('stroke', link => getLinkColour(selectedNode, link))
+    .attr("marker-end", "url(#arrow)");
+
+}
+
+function handleMouseOver(selectedNode) {
+console.log('in handlemouse')
+text = svg.append('text')
+  .text(selectedNode.label)
+  .attr('dy','1.2em')
+  .attr('transform', 'translate(1200,250)')
+  .attr('fill', '#ffffff')
+
+}
+
+function reinitiazeNodes(){
+ nodeElements = svg.append('g')
+	.selectAll('circle')
+	.data(nodes)
+	.enter().append('circle')
+	.attr('r', 10)
+	.attr('fill', nodeColour)
+	.on("mouseover", selectNode)
+	
+nodeElements.on('click', handleMouseOver)
+
+ textElements = svg.append('g')
+	.selectAll('text')
+	.data(nodes)
+	.enter().append('text')
+	.text(node => node.label)
+	.attr('font-size', 15)
+        .attr('dx', 10)
+	.attr('dy', -8)
+	.attr('fill', nodeColour)
+
+linkElements = svg.append('g')
+	.attr("class", "links")
+	.selectAll('line')
+	.data(links)
+	.enter().append('line')
+	.attr('stroke-width', 1)
+	.attr('stroke', '#E5E5E5')
+}
+
+function updateSimulation(){
+simulation.nodes(nodes).on('tick', () => {
+  nodeElements
+    .attr("cx", node => node.x)
+    .attr("cy", node => node.y)
+  textElements
+    .attr("x", node => node.x)
+    .attr("y", node => node.y)
+  linkElements
+    .attr("x1", link => link.source.x)
+    .attr("y1", link => link.source.y)
+    .attr("x2", link => link.target.x)
+    .attr("y2", link => link.target.y)
+
+})
+simulation.force('link').links(links)
+simulation.alphaTarget(0).restart()
+
+}
+
+function getData(){
+  console.log('inside getData')
+  $.ajax({
+    url: "http://localhost:8080/getData",
+    method: 'GET',
+    dataType: "json",
+    headers: {
+    'Access-Control-Allow-Origin': '*'
+    }
+     
+  }).done(function(data, status){
+	baseNodes = data
+	nodes = data
+	links = [
+	  { target: "mammal", source: "dog" , strength: 0.7 },
+	  { target: "mammal", source: "cat" , strength: 0.7 },
+	  { target: "mammal", source: "fox" , strength: 0.7 },
+	  { target: "mammal", source: "elk" , strength: 0.7 },
+	  { target: "insect", source: "ant" , strength: 0.7 },
+	  { target: "insect", source: "bee" , strength: 0.7 },
+	  { target: "fish"  , source: "carp", strength: 0.7 },
+	  { target: "fish"  , source: "pike", strength: 0.7 },
+
+	  { target: "cat"   , source: "elk" , strength: 0.1 },
+	  { target: "carp"  , source: "cat" , strength: 0.1 },
+	  { target: "elk"   , source: "bee" , strength: 0.1 },
+	  { target: "cat"   , source: "dog" , strength: 0.1 },
+	  { target: "fox"   , source: "elk" , strength: 0.1 },
+	  { target: "pike"  , source: "dog" , strength: 0.1 }
+	]
+	reinitiazeNodes()
+	updateSimulation()
+
+  }).fail(function(data, status){
+	$.each(data, function(index, element) {
+            if(index === "responseText"){
+		console.log(element)
+		baseNodes = $.parseJSON(element);
+	    }
+        });
+	console.log("baseNodes: "+baseNodes)
+	baseLinks = [
+	  { target: "mammal", source: "dog" , strength: 0.7 },
+	  { target: "mammal", source: "cat" , strength: 0.7 },
+	  { target: "mammal", source: "fox" , strength: 0.7 },
+	  { target: "mammal", source: "elk" , strength: 0.7 },
+	  { target: "insect", source: "ant" , strength: 0.7 },
+	  { target: "insect", source: "bee" , strength: 0.7 },
+	  { target: "fish"  , source: "carp", strength: 0.7 },
+	  { target: "fish"  , source: "pike", strength: 0.7 },
+
+	  { target: "cat"   , source: "elk" , strength: 0.1 },
+	  { target: "carp"  , source: "cat" , strength: 0.1 },
+	  { target: "elk"   , source: "bee" , strength: 0.1 },
+	  { target: "cat"   , source: "dog" , strength: 0.1 },
+	  { target: "fox"   , source: "elk" , strength: 0.1 },
+	  { target: "pike"  , source: "dog" , strength: 0.1 }
+	]
+	updateSimulation()
+  })
+}
+
+function nodeDetails(){
+console.log('in nodeDetails')
+	var textBox = svg.append('g')
+	.selectAll('text')
+	.enter().append('text')
+	.text("Details")
+	.attr('font-size', 20)
+        .attr('dx', 20)
+	.attr('dy', -8)
+	.attr('fill', nodeColour)
+
+}
+
+nodeElements.on('click', handleMouseOver)
+
+nodeElements.on('mouseover', selectNode)
+
+$( document ).ready(function() {
+    getData()
+});
+
+</script>
